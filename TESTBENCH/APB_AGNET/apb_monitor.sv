@@ -1,52 +1,54 @@
-class ahb_monitor extends uvm_monitor;
-   `uvm_component_utils(ahb_monitor)
-
-   virtual ahb_interface v_interface_h;
-
-   uvm_analysis_port#(ahb_transaction) ahb_mon2scor;
 
 
-   function new(string name = "ahb_monitor",uvm_component parent=null);
+class apb_monitor extends uvm_monitor;
+   `uvm_component_utils(apb_monitor)
+
+   virtual apb_interface v_interface_h;
+
+
+   uvm_analysis_port#(apb_transaction) apb_mon2scor;
+
+   function new(string name = "apb_monitor",uvm_component parent=null);
       super.new(name,parent);
-      ahb_mon2scor=new("ahb_mon2scor",this);
+      apb_mon2scor = new("apb_mon2scor",this);
    endfunction
 
    function void build_phase(uvm_phase phase);
       super.build_phase(phase);
       
-      if(! uvm_config_db#(virtual ahb_interface)::get(this,"","ahb_database",v_interface_h)) begin
-         `uvm_fatal("AHB-MONITOR ---> CONNECTION FAILED","");
+      if(!uvm_config_db#(virtual apb_interface)::get(this,"","apb_database",v_interface_h)) begin
+         `uvm_fatal("APB-MONITOR ---> CONNECTION FAILED","");
       end
-
+        
    endfunction
+  
+   bit [31:0] prev_addr;
+   bit [31:0] prev_wdata;
+   bit [31:0] prev_rdata;
    
-
-   int prev_addr;
-   int prev_wdata;
-   int prev_rdata;
-
    task run_phase(uvm_phase phase);
-      ahb_transaction trans;
-      trans=ahb_transaction::type_id::create("trans",this);
+      apb_transaction trans;
+      trans=apb_transaction::type_id::create("trans",this);
       forever begin
-         wait(v_interface_h.hresetn==1);
-         trans.haddr  = v_interface_h.haddr;
-         trans.hwdata = v_interface_h.hwdata;
-         trans.hrdata = v_interface_h.hrdata;
-         trans.hwrite = v_interface_h.hwrite;
-         trans.htrans = v_interface_h.htrans;
-         trans.hreadyin = v_interface_h.hreadyin;
-         trans.hreadyout = v_interface_h.hreadyout;
-         if(((trans.haddr != prev_addr) && (trans.hwdata != prev_wdata)) || trans.hrdata != prev_rdata) begin
-            ahb_mon2scor.write(trans);
-            `uvm_info("AHB_MONITOR ---> TRANS DATA",$sformatf("%0s",trans.sprint),UVM_NONE);
-            prev_wdata = trans.hwdata;
-            prev_addr  = trans.haddr;
-            prev_rdata  = trans.hrdata;
+         wait(v_interface_h.psel==1);
+         wait(v_interface_h.penable==1);
+         trans.psel   = v_interface_h.psel;
+         trans.penable= v_interface_h.penable;
+         trans.paddr  = v_interface_h.paddr;
+         trans.pwdata = v_interface_h.pwdata;
+         trans.prdata = v_interface_h.prdata;
+         trans.pwrite = v_interface_h.pwrite;
+         if(((trans.paddr != prev_addr) && (trans.pwdata != prev_wdata)) || trans.prdata != prev_rdata) begin
+            apb_mon2scor.write(trans);
+            `uvm_info("APB_MONITOR ---> TRANS DATA",$sformatf("%0s",trans.sprint),UVM_NONE);
+            prev_wdata = trans.pwdata;
+            prev_rdata = trans.prdata;
+            prev_addr  = trans.paddr;
          end
          else #10;
       end
    endtask
    
 endclass
+
 
